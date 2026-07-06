@@ -1,0 +1,49 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python caches and environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Data: keep documentation, not local datasets
+data/raw/**
+data/interim/**
+data/processed/**
+data/external/**
+!data/README.md
+!data/steam_manifest.md
+
+# Model checkpoints and generated artifacts
+models/**
+artifacts/**
+!models/README.md
+!artifacts/README.md
+
+# Generated report assets
+reports/figures/**
+reports/tables/**
+!reports/README.md
+
+# Logs, DB volumes, and builds
+logs/
+*.log
+postgres_data/
+*.dump
+*.sql.gz
+node_modules/
+.cache/
+dist/
+build/

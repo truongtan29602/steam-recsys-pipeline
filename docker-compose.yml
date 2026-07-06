@@ -1,0 +1,77 @@
+services:
+  postgres:
+    # Use the Debian-based Postgres image instead of the Alpine variant.
+    # On some Apple Silicon Docker Desktop setups the Alpine entrypoint can
+    # fail immediately with `exec format error`, which makes the healthcheck
+    # report the database as unhealthy before dependent services can start.
+    image: postgres:16-bookworm
+    container_name: steam-recsys-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-steam_recsys}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-steam_recsys_password}
+      POSTGRES_DB: ${POSTGRES_DB:-steam_recsys}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-steam_recsys} -d ${POSTGRES_DB:-steam_recsys}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: steam-recsys-pgadmin
+    profiles: ["tools"]
+    restart: unless-stopped
+    # Optional database admin UI. It is behind the `tools` profile so the
+    # required project stack (`postgres`, `api`, `frontend`) can always start
+    # with a plain `docker compose up`, even if a local pgAdmin image is broken.
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@steam-recsys.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: ./api
+    container_name: steam-recsys-api
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-steam_recsys}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-steam_recsys_password}
+      POSTGRES_DB: ${POSTGRES_DB:-steam_recsys}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./data:/app/data:ro
+      - ./models:/app/models:ro
+      - ./artifacts:/app/artifacts:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: steam-recsys-frontend
+    restart: unless-stopped
+    environment:
+      API_BASE_URL: http://api:8000
+    ports:
+      - "${FRONTEND_PORT:-8501}:8501"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  pgadmin_data:
