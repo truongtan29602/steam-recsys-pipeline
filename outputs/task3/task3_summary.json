@@ -18,7 +18,7 @@
         "recall@20": 0.001347326971410298,
         "ndcg@10": 0.00031944804554624257,
         "coverage@20": 1.0,
-        "recommendation_time_sec": 3.688723430000209
+        "recommendation_time_sec": 3.6098068629999034
       },
       {
         "model": "Popularity",
@@ -26,7 +26,7 @@
         "recall@20": 0.17522717803824261,
         "ndcg@10": 0.05241603664953573,
         "coverage@20": 0.004034249958834184,
-        "recommendation_time_sec": 6.241881418000048
+        "recommendation_time_sec": 3.259317536000026
       },
       {
         "model": "MF-BPR",
@@ -34,7 +34,15 @@
         "recall@20": 2.0657732640370994e-05,
         "ndcg@10": 8.446627200612581e-06,
         "coverage@20": 0.5078215050222296,
-        "recommendation_time_sec": 6.061592414999723
+        "recommendation_time_sec": 4.007363099000031
+      },
+      {
+        "model": "Two-Tower",
+        "users": 251589,
+        "recall@20": 2.5968278952312434e-05,
+        "ndcg@10": 2.4163053426717413e-06,
+        "coverage@20": 0.6150996212744937,
+        "recommendation_time_sec": 19.665894440000102
       }
     ],
     "test": [
@@ -44,7 +52,7 @@
         "recall@20": 0.0012024586918164143,
         "ndcg@10": 0.0002960893653446251,
         "coverage@20": 1.0,
-        "recommendation_time_sec": 8.795627603999947
+        "recommendation_time_sec": 8.601837538000154
       },
       {
         "model": "Popularity",
@@ -52,7 +60,7 @@
         "recall@20": 0.1699337670642483,
         "ndcg@10": 0.05458927852009486,
         "coverage@20": 0.004528239749711839,
-        "recommendation_time_sec": 7.576291257999856
+        "recommendation_time_sec": 10.367353118999972
       },
       {
         "model": "MF-BPR",
@@ -60,7 +68,15 @@
         "recall@20": 1.9066455095881746e-05,
         "ndcg@10": 6.4807721322718535e-06,
         "coverage@20": 0.5149020253581426,
-        "recommendation_time_sec": 8.921704834999673
+        "recommendation_time_sec": 6.082358042999886
+      },
+      {
+        "model": "Two-Tower",
+        "users": 592796,
+        "recall@20": 2.3662310604192802e-05,
+        "ndcg@10": 2.7014398653918046e-06,
+        "coverage@20": 0.6283550139963774,
+        "recommendation_time_sec": 33.95680448000007
       }
     ]
   }
