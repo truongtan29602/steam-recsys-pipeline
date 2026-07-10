@@ -52,3 +52,4 @@ dist/
 build/
 data/*.csv
 data/*.json.gz
+outputs/

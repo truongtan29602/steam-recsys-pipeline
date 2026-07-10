@@ -57,6 +57,7 @@ services:
       - ./data:/app/data:ro
       - ./models:/app/models:ro
       - ./artifacts:/app/artifacts:ro
+      - ./outputs:/app/outputs:ro
     depends_on:
       postgres:
         condition: service_healthy
