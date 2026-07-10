@@ -1,6 +1,7 @@
 """Steam RecSys FastAPI backend — loads models at startup, serves recommendations."""
 
 import json
+import os
 import pickle
 import sys
 import time
@@ -16,7 +17,7 @@ from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
 # --- Path setup ---
-ROOT = Path(__file__).resolve().parent.parent.parent  # project root from api/app/main.py
+ROOT = Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().parent.parent.parent))
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
