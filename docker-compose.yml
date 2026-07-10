@@ -48,6 +48,7 @@ services:
     container_name: steam-recsys-api
     restart: unless-stopped
     environment:
+      PROJECT_ROOT: /app
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-steam_recsys}
