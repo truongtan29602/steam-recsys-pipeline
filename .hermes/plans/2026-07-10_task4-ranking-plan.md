@@ -47,19 +47,29 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    subgraph FEATURES ["Feature Engineering"]
-        U1["user_activity_count"] --> DF[("Feature Matrix")]
-        U2["user_avg_hours"] --> DF
-        U3["user_distinct_items"] --> DF
-        I1["item_popularity"] --> DF
-        I2["item_avg_hours"] --> DF
-        I3["item_category"] --> DF
-        C1["user_item_category_affinity"] --> DF
-        C2["user_item_hours_ratio"] --> DF
-        T1["days_since_last_interaction"] --> DF
-        T2["hour_of_day"] --> DF
-        T3["recency_weight"] --> DF
-        T4["user_temporal_decay"] --> DF
+    subgraph FEATURES ["14 Features from Steam Columns"]
+        subgraph USER ["User (4)"]
+            U1["user_activity_count"] --> DF[("Feature Matrix")]
+            U2["user_avg_hours"] --> DF
+            U3["user_distinct_items"] --> DF
+            U4["user_positive_rate"] --> DF
+        end
+        subgraph ITEM ["Item (5)"]
+            I1["item_popularity"] --> DF
+            I2["item_avg_hours"] --> DF
+            I3["item_positive_rate"] --> DF
+            I4["item_avg_text_length"] --> DF
+            I5["item_is_early_access"] --> DF
+        end
+        subgraph CROSS ["Cross (3)"]
+            C1["user_category_affinity"] --> DF
+            C2["user_item_hours_vs_avg"] --> DF
+            C3["item_popularity_rank"] --> DF
+        end
+        subgraph TEMP ["Temporal (2)"]
+            T1["days_since_last"] --> DF
+            T2["hour_sin/hour_cos"] --> DF
+        end
     end
 ```
 
