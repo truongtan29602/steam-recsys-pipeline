@@ -1,0 +1,17 @@
+{
+  "model": "Two-Tower enriched (43 feat) + LightGBM LambdaRank",
+  "retrieval": {
+    "val_recall@20": 0.0889,
+    "val_ndcg@10": 0.031,
+    "test_recall@20": 0.0803,
+    "test_ndcg@10": 0.019
+  },
+  "ranking": {
+    "ndcg@10": 0.3011,
+    "ndcg_std": 0.3518,
+    "catalog_coverage": 0.033
+  },
+  "feature_engineering_s": 10.2,
+  "ranking_training_s": 5.8,
+  "retrieval_s": 0.3
+}
