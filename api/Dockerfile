@@ -1,15 +1,28 @@
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app:/app/src
 
 WORKDIR /app
 
-COPY requirements.txt .
+# System deps for torch + faiss
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 libopenblas0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python deps
+COPY api/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app ./app
+# Copy source code
+COPY api/app ./app
+COPY src ./src
+COPY scripts ./scripts
+COPY outputs/task3/two_tower_enriched.pkl ./outputs/task3/
+COPY models ./models
+COPY artifacts ./artifacts
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
