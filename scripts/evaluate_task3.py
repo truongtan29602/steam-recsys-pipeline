@@ -20,6 +20,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scripts.metrics import compute_all_metrics
 from scripts.mf_bpr import MFBPRConfig, MFBPRRecommender
 from scripts.models import PopularityRecommender, RandomRecommender
+try:
+    from scripts.two_tower import TwoTowerConfig, TwoTowerRecommender
+except Exception:  # pragma: no cover
+    TwoTowerConfig = None
+    TwoTowerRecommender = None
 
 
 def build_history(*dfs: pd.DataFrame) -> Dict[str, Set[str]]:
@@ -64,6 +69,7 @@ def evaluate(
     k: int,
     ndcg_k: int,
     mf_config: MFBPRConfig,
+    two_tower_config=None,
     max_train_positives: int | None = None,
 ) -> Dict[str, List[Dict[str, float]]]:
     train_df = pd.read_parquet(data_dir / "train.parquet")
@@ -89,6 +95,12 @@ def evaluate(
         train_df, item_col="item_id", label_col="is_positive", use_positive_only=True
     )
     mf_model = MFBPRRecommender(config=mf_config).fit(mf_train_df, user_col="user_id", item_col="item_id", label_col="is_positive")
+    two_tower_model = None
+    if TwoTowerRecommender is not None and two_tower_config is not None:
+        two_tower_model = TwoTowerRecommender(config=two_tower_config).fit(
+            mf_train_df, user_col="user_id", item_col="item_id", label_col="is_positive"
+        )
+        two_tower_model.save(output_dir / "two_tower.pkl")
     mf_model.save(output_dir / "mf_bpr.pkl")
     popularity_model.save(output_dir / "popularity_recommender.pkl")
     random_model.save(output_dir / "random_recommender.pkl")
@@ -100,6 +112,8 @@ def evaluate(
         results[split_name].append(eval_model("Random", random_model, users, history, gt, catalog, k, ndcg_k))
         results[split_name].append(eval_model("Popularity", popularity_model, users, history, gt, catalog, k, ndcg_k))
         results[split_name].append(eval_model("MF-BPR", mf_model, users, history, gt, catalog, k, ndcg_k))
+        if two_tower_model is not None:
+            results[split_name].append(eval_model("Two-Tower", two_tower_model, users, history, gt, catalog, k, ndcg_k))
 
     with open(output_dir / "task3_results.json", "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
@@ -138,7 +152,18 @@ def main() -> None:
         seed=args.seed,
         device=args.device,
     )
-    results = evaluate(args.data, args.output_dir, args.k, args.ndcg_k, mf_config, max_train_positives=args.max_train_positives)
+    two_tower_config = None
+    if TwoTowerConfig is not None:
+        two_tower_config = TwoTowerConfig(seed=args.seed, device=args.device)
+    results = evaluate(
+        args.data,
+        args.output_dir,
+        args.k,
+        args.ndcg_k,
+        mf_config,
+        two_tower_config=two_tower_config,
+        max_train_positives=args.max_train_positives,
+    )
     print(json.dumps(results, indent=2))
 
 
