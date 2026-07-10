@@ -50,3 +50,5 @@ node_modules/
 .cache/
 dist/
 build/
+data/*.csv
+data/*.json.gz
