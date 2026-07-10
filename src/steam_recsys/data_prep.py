@@ -69,6 +69,7 @@ def load_games(path: Path = GAMES_PATH) -> pd.DataFrame:
 
     games = pd.DataFrame(rows).drop_duplicates("item_id", keep="last")
     games["release_date"] = pd.to_datetime(games["release_date"], errors="coerce")
+    games["price"] = pd.to_numeric(games["price"], errors="coerce")
     return games
 
 

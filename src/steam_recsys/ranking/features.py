@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import OneHotEncoder
 
 
 # ── user-level features ──────────────────────────────────────────────────────
@@ -62,9 +63,6 @@ def compute_item_features(
     item["item_is_early_access"] = item["early_access_item"].fillna(False).astype(int)
     item.drop(columns=["early_access_item"], inplace=True)
 
-    # Popularity rank percentile (0 = least popular, 1 = most popular)
-    item["item_popularity_rank"] = item["item_popularity"].rank(pct=True)
-
     return item
 
 
@@ -107,7 +105,7 @@ def compute_cross_features(
     # Playtime ratio: this item's hours vs user's average
     df["user_item_hours_vs_avg"] = np.where(
         df["user_avg_hours"] > 0,
-        df.get("hours", df["user_avg_hours"]) / df["user_avg_hours"],
+        df["hours"].fillna(df["user_avg_hours"]) / df["user_avg_hours"],
         1.0,
     )
 
@@ -149,16 +147,18 @@ def build_features(
     candidates: pd.DataFrame,
     train: pd.DataFrame,
     catalog: pd.DataFrame,
-) -> tuple[pd.DataFrame, list[str]]:
+    encoder: OneHotEncoder | None = None,
+) -> tuple[pd.DataFrame, list[str], OneHotEncoder]:
     """Orchestrate all feature computation.
 
     Args:
         candidates: [user_id, item_id, event_time, hours, ...] — retrieval output
         train: Full training interactions (no leakage from val/test)
         catalog: Item metadata from items.parquet
+        encoder: Pre-fit OneHotEncoder for categories. If None, fit on train+val.
 
     Returns:
-        (feature_df, feature_names) — ready for LightGBM, label column included
+        (feature_df, feature_names, encoder) — ready for LightGBM, label included
     """
     user_feat = compute_user_features(train)
     item_feat = compute_item_features(train, catalog)
@@ -166,8 +166,17 @@ def build_features(
     df = compute_cross_features(candidates, user_feat, item_feat, train)
     df = compute_temporal_features(df, train)
 
-    # One-hot encode category
-    df = pd.get_dummies(df, columns=["category"], prefix="cat")
+    # One-hot encode category (replaces pd.get_dummies for serving portability)
+    cat_col = "category"
+    cat_values = df[[cat_col]].fillna("Unknown")
+    if encoder is None:
+        encoder = OneHotEncoder(sparse_output=False, handle_unknown="ignore")
+        encoder.fit(cat_values)
+    cat_encoded = encoder.transform(cat_values)
+    cat_feature_names = encoder.get_feature_names_out([cat_col]).tolist()
+
+    df_cat = pd.DataFrame(cat_encoded, columns=cat_feature_names, index=df.index)
+    df = pd.concat([df.drop(columns=[cat_col]), df_cat], axis=1)
 
     # Numeric features only (exclude ids, timestamps, targets)
     exclude = {
@@ -176,4 +185,4 @@ def build_features(
     }
     feature_cols = [c for c in df.columns if c not in exclude]
 
-    return df, feature_cols
+    return df, feature_cols, encoder

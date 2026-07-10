@@ -5,13 +5,21 @@ The pipeline: raw interactions → 14 features → LightGBM LambdaRank → re-ra
 """
 
 from .features import build_features, compute_user_features, compute_item_features
-from .train import train_ranker, evaluate_ranker, prepare_ranking_data
+from .train import (
+    evaluate_ranker,
+    load_model,
+    prepare_ranking_data,
+    save_model,
+    train_ranker,
+)
 
 __all__ = [
     "build_features",
     "compute_user_features",
     "compute_item_features",
-    "train_ranker",
     "evaluate_ranker",
+    "load_model",
     "prepare_ranking_data",
+    "save_model",
+    "train_ranker",
 ]

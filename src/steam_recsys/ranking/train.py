@@ -10,11 +10,15 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
 from sklearn.metrics import ndcg_score
+
+if TYPE_CHECKING:
+    from sklearn.preprocessing import OneHotEncoder
 
 
 def prepare_ranking_data(
@@ -28,8 +32,8 @@ def prepare_ranking_data(
     Query groups = all candidates for a single user.
     """
     df = df.sort_values(group_col).reset_index(drop=True)
-    X = df[feature_cols].fillna(0).values.astype(np.float32)
-    y = df[label_col].fillna(0).astype(float).values
+    X = df[feature_cols].values.astype(np.float32)
+    y = df[label_col].astype(float).values
     query_sizes = df.groupby(group_col, sort=False).size().values
     return X, y, query_sizes
 
@@ -101,17 +105,27 @@ def evaluate_ranker(
     X_test: np.ndarray,
     y_test: np.ndarray,
     query_test: np.ndarray,
+    item_ids: np.ndarray,
     catalog_size: int,
     k: int = 10,
 ) -> dict:
     """Evaluate NDCG@k and Catalog Coverage.
+
+    Args:
+        model: Trained LightGBM booster.
+        X_test: Feature matrix.
+        y_test: Labels (1 = relevant, 0 = not).
+        query_test: Group sizes per user.
+        item_ids: Item IDs corresponding to each row in X_test (str or int).
+        catalog_size: Total number of items in catalog.
+        k: Cutoff for NDCG@k.
 
     Returns dict with per-query NDCG and aggregate metrics.
     """
     scores = model.predict(X_test)
 
     ndcg_list: list[float] = []
-    recommended_items: set[int] = set()
+    recommended_items: set[str] = set()
 
     offset = 0
     for qsize in query_test:
@@ -122,9 +136,11 @@ def evaluate_ranker(
         group_scores = scores[offset:end]
 
         if group_y.sum() > 0 and len(group_y) >= k:
-            # Top-k indices within this group
-            top_k = np.argsort(group_scores)[::-1][:k]
-            recommended_items.update(top_k + offset)  # global index
+            # Top-k relative indices within this group
+            top_k_rel = np.argsort(group_scores)[::-1][:k]
+            # Track actual item IDs for catalog coverage
+            for rel_idx in top_k_rel:
+                recommended_items.add(str(item_ids[offset + rel_idx]))
 
             try:
                 ndcg = ndcg_score([group_y], [group_scores], k=k)
@@ -143,8 +159,9 @@ def evaluate_ranker(
 
 
 def save_model(model: lgb.Booster, feature_names: list[str],
+               encoder: "OneHotEncoder | None" = None,
                model_dir: str = "models", artifact_dir: str = "artifacts") -> None:
-    """Export LightGBM model and feature list for API serving."""
+    """Export LightGBM model, feature list, and category encoder for API."""
     Path(model_dir).mkdir(parents=True, exist_ok=True)
     Path(artifact_dir).mkdir(parents=True, exist_ok=True)
 
@@ -152,12 +169,20 @@ def save_model(model: lgb.Booster, feature_names: list[str],
     (Path(artifact_dir) / "feature_names.json").write_text(
         json.dumps(feature_names, indent=2)
     )
+    if encoder is not None:
+        import pickle
+        (Path(artifact_dir) / "category_encoder.pkl").write_bytes(
+            pickle.dumps(encoder)
+        )
 
 
 def load_model(model_dir: str = "models", artifact_dir: str = "artifacts") -> tuple:
-    """Load exported model and feature names for API."""
+    """Load exported model, feature names, and category encoder for API."""
+    import pickle
     model = lgb.Booster(model_file=f"{model_dir}/ranker.txt")
     feature_names = json.loads(
         (Path(artifact_dir) / "feature_names.json").read_text()
     )
-    return model, feature_names
+    encoder_path = Path(artifact_dir) / "category_encoder.pkl"
+    encoder = pickle.loads(encoder_path.read_bytes()) if encoder_path.exists() else None
+    return model, feature_names, encoder
