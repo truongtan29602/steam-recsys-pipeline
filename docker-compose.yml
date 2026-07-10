@@ -15,7 +15,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./sql/init:/docker-entrypoint-initdb.d:ro
+      - ./sql/init:/docker-entrypoint-initdb.d:ro,Z
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-steam_recsys} -d ${POSTGRES_DB:-steam_recsys}"]
       interval: 10s
@@ -42,7 +42,9 @@ services:
         condition: service_healthy
 
   api:
-    build: ./api
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     container_name: steam-recsys-api
     restart: unless-stopped
     environment:
@@ -54,16 +56,18 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
-      - ./data:/app/data:ro
-      - ./models:/app/models:ro
-      - ./artifacts:/app/artifacts:ro
-      - ./outputs:/app/outputs:ro
+      - ./data:/app/data:ro,Z
+      - ./models:/app/models:ro,Z
+      - ./artifacts:/app/artifacts:ro,Z
+      - ./outputs:/app/outputs:ro,Z
     depends_on:
       postgres:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
     container_name: steam-recsys-frontend
     restart: unless-stopped
     environment:
