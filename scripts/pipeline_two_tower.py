@@ -84,20 +84,26 @@ print(f"  Val:  Recall@20={val_r20:.4f}  NDCG@10={val_n10:.4f}")
 print(f"  Test: Recall@20={test_r20:.4f}  NDCG@10={test_n10:.4f}")
 
 # ── Build ranking candidates ──────────────────────────────────────────
-def build_candidates(recs, interactions_df, gt_dict):
+def build_candidates(recs, interactions_df, gt_dict, train_df, item_avg_hours_map):
     rows = [(uid, item) for uid, items in recs.items() for item in items]
     df = pd.DataFrame(rows, columns=["user_id", "item_id"])
     df["is_positive"] = df.apply(lambda r: r["item_id"] in gt_dict.get(r["user_id"], set()), axis=1)
     u_events = interactions_df.groupby("user_id")["event_time"].max().reset_index()
     u_events.columns = ["user_id", "event_time"]
     df = df.merge(u_events, on="user_id", how="left")
+    # Get real hours for positives, item average for negatives (NO LEAKAGE)
     ih = interactions_df.groupby(["user_id", "item_id"])["hours"].first().reset_index()
     df = df.merge(ih, on=["user_id", "item_id"], how="left")
-    df["hours"] = df["hours"].fillna(0.0)
+    df["item_avg_hours"] = df["item_id"].map(item_avg_hours_map).fillna(0.0)
+    df["hours"] = df["hours"].fillna(df["item_avg_hours"])  # ← estimate, not 0
+    df.drop(columns=["item_avg_hours"], inplace=True)
     return df
 
-cand_val = build_candidates(val_recs, val, val_gt)
-cand_test = build_candidates(test_recs, test, test_gt)
+# Pre-compute item average hours from training (for leak-free negatives)
+item_avg_hours = train.groupby("item_id")["hours"].mean().to_dict()
+
+cand_val = build_candidates(val_recs, val, val_gt, train, item_avg_hours)
+cand_test = build_candidates(test_recs, test, test_gt, train, item_avg_hours)
 print(f"\nCandidates: {len(cand_val):,} val | {len(cand_test):,} test")
 print(f"Pos rate:  {cand_val.is_positive.mean():.2%} val | {cand_test.is_positive.mean():.2%} test")
 

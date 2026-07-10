@@ -110,9 +110,15 @@ def build_ranking_candidates(recs, interactions_df, gt_dict):
 
     item_hours = interactions_df.groupby(["user_id", "item_id"])["hours"].first().reset_index()
     df = df.merge(item_hours, on=["user_id", "item_id"], how="left")
-    df["hours"] = df["hours"].fillna(0.0)
+    # For negatives: use item's average hours from training (NO LEAKAGE)
+    df["item_avg_hours"] = df["item_id"].map(item_avg_hours_map).fillna(0.0)
+    df["hours"] = df["hours"].fillna(df["item_avg_hours"])
+    df.drop(columns=["item_avg_hours"], inplace=True)
 
     return df
+
+# Pre-compute item average hours from training
+item_avg_hours_map = train.groupby("item_id")["hours"].mean().to_dict()
 
 candidates_val = build_ranking_candidates(val_recs, val, val_gt)
 candidates_test = build_ranking_candidates(test_recs, test, test_gt)
