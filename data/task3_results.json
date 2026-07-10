@@ -1,0 +1,54 @@
+{
+  "validation": [
+    {
+      "model": "Random",
+      "users": 251589,
+      "recall@20": 0.001347326971410298,
+      "ndcg@10": 0.00031944804554624257,
+      "coverage@20": 1.0,
+      "recommendation_time_sec": 2.8418260399994324
+    },
+    {
+      "model": "Popularity",
+      "users": 251589,
+      "recall@20": 0.17522717803824264,
+      "ndcg@10": 0.05241603664953573,
+      "coverage@20": 0.004034249958834184,
+      "recommendation_time_sec": 3.5478342110000085
+    },
+    {
+      "model": "MF-BPR",
+      "users": 251589,
+      "recall@20": 3.6926208330761e-05,
+      "ndcg@10": 1.5264491900170866e-05,
+      "coverage@20": 0.16598056973489214,
+      "recommendation_time_sec": 0.6971323770012532
+    }
+  ],
+  "test": [
+    {
+      "model": "Random",
+      "users": 592796,
+      "recall@20": 0.0012024586918164143,
+      "ndcg@10": 0.0002960893653446251,
+      "coverage@20": 1.0,
+      "recommendation_time_sec": 6.768555933000243
+    },
+    {
+      "model": "Popularity",
+      "users": 592796,
+      "recall@20": 0.16993376706424837,
+      "ndcg@10": 0.05458927852009488,
+      "coverage@20": 0.004528239749711839,
+      "recommendation_time_sec": 7.531702131998827
+    },
+    {
+      "model": "MF-BPR",
+      "users": 592796,
+      "recall@20": 1.62253559712382e-05,
+      "ndcg@10": 7.30015803978779e-06,
+      "coverage@20": 0.1709204676436687,
+      "recommendation_time_sec": 1.1719787729998643
+    }
+  ]
+}
