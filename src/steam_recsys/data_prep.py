@@ -168,12 +168,16 @@ def summarize(interactions: pd.DataFrame, catalog: pd.DataFrame) -> dict:
     observed = len(interactions)
     sparsity = 1 - observed / possible if possible else float("nan")
     positive_rate = interactions["is_positive"].mean()
+    if "category" in catalog.columns:
+        items_with_known_metadata = int((catalog["category"] != "Unknown").sum())
+    else:
+        items_with_known_metadata = 0
     return {
         "interactions": int(observed),
         "users": int(n_users),
         "items": int(n_items),
         "catalog_items": int(len(catalog)),
-        "items_with_known_metadata": int((catalog["category"] != "Unknown").sum()),
+        "items_with_known_metadata": items_with_known_metadata,
         "sparsity": float(sparsity),
         "positive_threshold_hours": POSITIVE_HOURS_THRESHOLD,
         "positive_interactions": int(interactions["is_positive"].sum()),
