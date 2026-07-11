@@ -7,6 +7,7 @@ guest trending, personalized homepage, item-to-item similarity, and
 
 import os
 import random
+from html import escape
 
 import requests
 import streamlit as st
@@ -25,68 +26,179 @@ st.markdown(
     """
     <style>
     :root {
-        --card-bg: rgba(20, 31, 48, 0.74);
-        --accent: #66d9ef;
-        --accent-2: #a6e22e;
+        --page-bg: #08111f;
+        --panel-bg: rgba(15, 25, 42, 0.94);
+        --card-bg: rgba(255, 255, 255, 0.96);
+        --card-text: #102033;
+        --muted-text: #53657c;
+        --accent: #4cc9f0;
+        --accent-2: #80ffdb;
+        --warning: #ffd166;
     }
-    .main .block-container { padding-top: 1.4rem; max-width: 1400px; }
+    .stApp {
+        color: #f8fbff;
+        background:
+            radial-gradient(circle at 8% 5%, rgba(76, 201, 240, 0.24), transparent 28rem),
+            radial-gradient(circle at 92% 12%, rgba(128, 255, 219, 0.18), transparent 26rem),
+            linear-gradient(135deg, #07101f 0%, #0c1628 48%, #111827 100%);
+    }
+    .main .block-container {
+        padding-top: 1.6rem;
+        padding-bottom: 2.5rem;
+        max-width: 1440px;
+    }
+    h1, h2, h3, h4, h5, h6, p, li, label, span, div {
+        text-rendering: optimizeLegibility;
+    }
+    div[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #07111f 0%, #101a2c 100%);
+        border-right: 1px solid rgba(255,255,255,.08);
+    }
+    div[data-testid="stSidebar"] * {
+        color: #eef6ff !important;
+    }
+    div[data-testid="stSidebar"] .stCaption,
+    div[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+        color: rgba(238,246,255,.78) !important;
+    }
+    .stMarkdown, .stCaption, .stSlider, .stTextInput, .stSelectbox {
+        color: #f8fbff;
+    }
+    div[data-testid="stAlert"] {
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,.12);
+    }
     div[data-testid="stMetric"] {
-        background: linear-gradient(135deg, rgba(35,48,72,.92), rgba(19,28,44,.92));
-        border: 1px solid rgba(102,217,239,.22);
-        border-radius: 18px;
-        padding: 1rem;
-        box-shadow: 0 14px 30px rgba(0,0,0,.18);
+        background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(224,241,255,.94));
+        border: 1px solid rgba(76,201,240,.34);
+        border-radius: 22px;
+        padding: 1.05rem;
+        box-shadow: 0 18px 42px rgba(0,0,0,.26);
+    }
+    div[data-testid="stMetric"] * {
+        color: #102033 !important;
     }
     .hero {
-        background: radial-gradient(circle at 10% 20%, rgba(102,217,239,.28), transparent 26%),
-                    linear-gradient(135deg, #101827 0%, #16223a 48%, #102617 100%);
-        border: 1px solid rgba(255,255,255,.08);
-        border-radius: 28px;
-        padding: 2rem 2.2rem;
-        margin-bottom: 1.2rem;
-        box-shadow: 0 18px 50px rgba(0,0,0,.24);
+        position: relative;
+        overflow: hidden;
+        background:
+            linear-gradient(120deg, rgba(9, 20, 38, .92), rgba(13, 36, 55, .90)),
+            radial-gradient(circle at 18% 20%, rgba(76,201,240,.38), transparent 26%),
+            radial-gradient(circle at 85% 35%, rgba(128,255,219,.32), transparent 32%);
+        border: 1px solid rgba(255,255,255,.16);
+        border-radius: 32px;
+        padding: 2.35rem 2.45rem;
+        margin-bottom: 1.35rem;
+        box-shadow: 0 24px 70px rgba(0,0,0,.34);
     }
-    .hero h1 { margin: 0 0 .4rem 0; font-size: 3.1rem; letter-spacing: -.04em; }
-    .hero p { color: rgba(255,255,255,.78); font-size: 1.05rem; max-width: 980px; }
+    .hero h1 {
+        margin: 0 0 .55rem 0;
+        font-size: clamp(2.4rem, 5vw, 4.2rem);
+        line-height: .95;
+        letter-spacing: -.055em;
+        color: #ffffff;
+        text-shadow: 0 5px 28px rgba(0,0,0,.45);
+    }
+    .hero p {
+        color: rgba(255,255,255,.88);
+        font-size: 1.12rem;
+        max-width: 980px;
+        line-height: 1.65;
+    }
     .badge-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
     .badge {
-        background: rgba(255,255,255,.09);
-        border: 1px solid rgba(255,255,255,.12);
+        background: rgba(255,255,255,.14);
+        border: 1px solid rgba(255,255,255,.24);
         border-radius: 999px;
-        padding: .35rem .7rem;
-        font-size: .82rem;
-        color: rgba(255,255,255,.9);
+        padding: .42rem .78rem;
+        font-size: .84rem;
+        font-weight: 700;
+        color: #ffffff;
+        backdrop-filter: blur(10px);
     }
-    .section-title { margin-top: 1.2rem; margin-bottom: .2rem; }
-    .section-subtitle { color: rgba(250,250,250,.65); margin-bottom: .7rem; }
+    .section-title {
+        margin-top: 1.35rem;
+        margin-bottom: .25rem;
+        color: #ffffff;
+        letter-spacing: -.025em;
+    }
+    .section-subtitle {
+        color: rgba(232,241,255,.82);
+        margin-bottom: .95rem;
+        font-size: 1.02rem;
+    }
     .game-card {
         border-radius: 18px;
         overflow: hidden;
-        border: 1px solid rgba(255,255,255,.10);
+        border: 1px solid rgba(255,255,255,.70);
         background: var(--card-bg);
-        min-height: 238px;
-        box-shadow: 0 12px 30px rgba(0,0,0,.20);
-        transition: transform .18s ease, border-color .18s ease;
+        min-height: 260px;
+        box-shadow: 0 18px 38px rgba(0,0,0,.30);
+        transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
     }
-    .game-card:hover { transform: translateY(-3px); border-color: rgba(102,217,239,.55); }
+    .game-card:hover {
+        transform: translateY(-5px);
+        border-color: rgba(76,201,240,.95);
+        box-shadow: 0 24px 52px rgba(0,0,0,.38);
+    }
     .game-img {
-        height: 92px;
+        height: 104px;
         width: 100%;
         object-fit: cover;
-        background: linear-gradient(135deg, #263954, #14251f);
+        background: linear-gradient(135deg, #1d3557, #0b132b);
     }
-    .game-body { padding: .82rem .9rem .95rem .9rem; }
-    .game-title { font-weight: 750; line-height: 1.18; min-height: 2.35rem; }
-    .game-meta { color: rgba(255,255,255,.64); font-size: .80rem; margin-top: .45rem; }
+    .game-body { padding: .95rem 1rem 1.05rem 1rem; }
+    .game-title {
+        color: var(--card-text);
+        font-weight: 850;
+        line-height: 1.22;
+        min-height: 3rem;
+        font-size: .98rem;
+    }
+    .game-meta {
+        color: var(--muted-text);
+        font-size: .80rem;
+        margin-top: .48rem;
+        line-height: 1.35;
+    }
+    .game-meta code {
+        color: #0b4f6c;
+        background: rgba(76,201,240,.14);
+        border-radius: 6px;
+        padding: .05rem .24rem;
+    }
     .model-pill {
         display: inline-block;
         margin-top: .65rem;
-        color: #041218;
+        color: #06111d;
         background: linear-gradient(135deg, var(--accent), var(--accent-2));
         border-radius: 999px;
-        padding: .18rem .48rem;
+        padding: .24rem .56rem;
         font-size: .70rem;
-        font-weight: 700;
+        font-weight: 850;
+        box-shadow: 0 8px 18px rgba(76,201,240,.22);
+    }
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+        color: #102033 !important;
+        background: rgba(255,255,255,.98) !important;
+        border-radius: 14px !important;
+    }
+    .stButton > button {
+        border: 0;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #4cc9f0, #80ffdb);
+        color: #06111d;
+        font-weight: 850;
+        box-shadow: 0 14px 28px rgba(76,201,240,.22);
+    }
+    .stButton > button:hover {
+        color: #06111d;
+        transform: translateY(-1px);
+        box-shadow: 0 18px 36px rgba(76,201,240,.30);
+    }
+    hr {
+        border-color: rgba(255,255,255,.14) !important;
     }
     </style>
     """,
@@ -155,15 +267,20 @@ def display_cards(items, model_label, key_prefix="", max_cards=10):
                 category = item.get("category", "Unknown")
                 item_id = item.get("item_id", "?")
                 image_url = _safe_image(item.get("image_url"))
+                title_text = escape(str(title)[:58])
+                category_text = escape(str(category)[:46])
+                item_id_text = escape(str(item_id))
+                image_url_text = escape(str(image_url), quote=True)
+                model_label_text = escape(str(model_label))
                 st.markdown(
                     f"""
                     <div class="game-card">
-                        <img class="game-img" src="{image_url}" alt="{title}">
+                        <img class="game-img" src="{image_url_text}" alt="{title_text}">
                         <div class="game-body">
-                            <div class="game-title">{i + 1}. {title[:54]}</div>
-                            <div class="game-meta">🎮 Steam ID: <code>{item_id}</code></div>
-                            <div class="game-meta">📂 {category[:42]}</div>
-                            <span class="model-pill">{model_label}</span>
+                            <div class="game-title">{i + 1}. {title_text}</div>
+                            <div class="game-meta">🎮 Steam ID: <code>{item_id_text}</code></div>
+                            <div class="game-meta">📂 {category_text}</div>
+                            <span class="model-pill">{model_label_text}</span>
                         </div>
                     </div>
                     """,

@@ -108,17 +108,23 @@ class RandomRecommender:
 
         for u in user_ids:
             seen = history.get(u, set())
+            available = [it for it in self.catalog if it not in seen]
+            target_k = min(k, len(available))
+            if target_k == 0:
+                recs[u] = []
+                continue
+
             chosen: List[str] = []
             chosen_set: Set[str] = set()
 
-            while len(chosen) < k:
-                batch_size = (k - len(chosen)) * oversample
+            while len(chosen) < target_k:
+                batch_size = (target_k - len(chosen)) * oversample
                 idx = self.rng.integers(0, n_catalog, size=batch_size)
                 for it in self.catalog[idx]:
                     if it not in seen and it not in chosen_set:
                         chosen.append(it)
                         chosen_set.add(it)
-                        if len(chosen) == k:
+                        if len(chosen) == target_k:
                             break
 
             recs[u] = chosen

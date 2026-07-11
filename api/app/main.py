@@ -8,6 +8,13 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
+# macOS local Python can load multiple OpenMP runtimes through torch/faiss/
+# LightGBM. Set conservative defaults before importing those libraries so local
+# smoke tests match the more stable Linux Docker runtime instead of aborting or
+# segfaulting during model startup.
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+
 import faiss
 import lightgbm as lgb
 import numpy as np
@@ -128,8 +135,23 @@ def load_models():
         print("WARNING: LightGBM model not found — ranking disabled")
 
     # --- Catalog ---
-    catalog_df = pd.read_parquet(DATA_DIR / "items.parquet")
-    catalog_df["item_id"] = catalog_df["item_id"].astype(str)
+    # `items.parquet` is optional in the local Docker setup. The processed
+    # train/test/validation files are enough to serve API responses, so create
+    # a minimal catalog from observed item ids when rich item metadata has not
+    # been generated yet.
+    catalog_path = DATA_DIR / "items.parquet"
+    if catalog_path.exists():
+        catalog_df = pd.read_parquet(catalog_path)
+        catalog_df["item_id"] = catalog_df["item_id"].astype(str)
+    else:
+        item_ids = pd.Series(train_df["item_id"].astype(str).unique(), name="item_id")
+        catalog_df = pd.DataFrame({
+            "item_id": item_ids,
+            "title": item_ids.map(lambda item_id: f"Game {item_id}"),
+            "category": "Unknown",
+            "image_url": "",
+        })
+        print(f"WARNING: Catalog not found at {catalog_path}; using generated item-id catalog")
     item_avg_hours_map = train_df.groupby("item_id")["hours"].mean().to_dict()
     print(f"Catalog loaded: {len(catalog_df):,} items")
 
@@ -148,6 +170,7 @@ def get_popular_history() -> Dict[str, Set[str]]:
 
 def build_item_response(item_id: str) -> Dict:
     """Build a single item dict from catalog."""
+    item_id = str(item_id)
     row = catalog_df[catalog_df["item_id"] == item_id]
     if row.empty:
         return {"item_id": item_id, "title": f"Game {item_id}", "category": "Unknown"}
@@ -173,12 +196,37 @@ def health():
     }
 
 
+@app.get("/")
+def root():
+    """API landing page so http://localhost:8000/ does not return 404."""
+    return {
+        "service": "Steam RecSys API",
+        "status": "ok",
+        "version": app.version,
+        "docs": "/docs",
+        "health": "/health",
+        "endpoints": {
+            "users": "/users",
+            "popular_recommendations": "/recommendations/popular",
+            "personalized_recommendations": "/recommendations/personalized/{user_id}",
+            "similar_items": "/items/{item_id}/similar",
+            "user_history": "/users/{user_id}/history",
+        },
+    }
+
+
 @app.get("/users", response_model=List[UserInfo])
 def list_users(limit: int = Query(100, le=500)):
     """List test-period users for the frontend dropdown."""
     test_df = pd.read_parquet(DATA_DIR / "test.parquet")
     users = test_df.groupby("user_id").size().reset_index(name="history_count")
-    users = users.sort_values("history_count", ascending=False).head(limit)
+    if two_tower is not None:
+        model_users = set(two_tower.user_to_idx)
+        users["in_model"] = users["user_id"].astype(str).isin(model_users)
+        users = users.sort_values(["in_model", "history_count"], ascending=[False, False])
+    else:
+        users = users.sort_values("history_count", ascending=False)
+    users = users.head(limit)
     return [UserInfo(user_id=row["user_id"], history_count=int(row["history_count"]))
             for _, row in users.iterrows()]
 

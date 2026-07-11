@@ -19,7 +19,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY api/app/ ./
 COPY src ./src
 COPY scripts ./scripts
-COPY outputs/task3/two_tower_enriched.pkl ./outputs/task3/
+
+# Copy optional runtime artifact directories as directories, not individual
+# model files. Some model artifacts (for example
+# outputs/task3/two_tower_enriched.pkl) are produced by notebook/pipeline runs
+# and may not exist on a fresh checkout. A hard COPY of one missing artifact
+# makes `docker compose build api` fail before the API can start. The API
+# already handles a missing two-tower model at runtime and the compose file also
+# bind-mounts these directories for local artifacts.
+COPY outputs ./outputs
 COPY models ./models
 COPY artifacts ./artifacts
 
