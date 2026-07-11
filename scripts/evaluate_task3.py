@@ -75,6 +75,11 @@ def evaluate(
     train_df = pd.read_parquet(data_dir / "train.parquet")
     val_df = pd.read_parquet(data_dir / "validation.parquet")
     test_df = pd.read_parquet(data_dir / "test.parquet")
+    items_path = data_dir / "items.parquet"
+    if items_path.exists():
+        catalog_df = pd.read_parquet(items_path)
+    else:
+        catalog_df = pd.DataFrame({"item_id": sorted(train_df["item_id"].astype(str).unique())})
     mf_train_df = _sample_training_positives(train_df, max_train_positives, mf_config.seed)
 
     val_history = build_history(train_df)
@@ -98,7 +103,7 @@ def evaluate(
     two_tower_model = None
     if TwoTowerRecommender is not None and two_tower_config is not None:
         two_tower_model = TwoTowerRecommender(config=two_tower_config).fit(
-            mf_train_df, user_col="user_id", item_col="item_id", label_col="is_positive"
+            mf_train_df, catalog_df, user_col="user_id", item_col="item_id", label_col="is_positive"
         )
         two_tower_model.save(output_dir / "two_tower.pkl")
     mf_model.save(output_dir / "mf_bpr.pkl")
