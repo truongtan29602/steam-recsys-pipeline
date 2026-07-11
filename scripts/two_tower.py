@@ -88,6 +88,21 @@ class TwoTowerRecommender:
         ).fillna(0)
 
         if catalog is not None:
+            catalog = catalog.copy()
+            if "category" not in catalog.columns:
+                catalog["category"] = "Unknown"
+            if "price" not in catalog.columns:
+                catalog["price"] = 0.0
+            if "early_access_item" not in catalog.columns:
+                catalog["early_access_item"] = False
+            if "genres" not in catalog.columns:
+                catalog["genres"] = ""
+            if "tags" not in catalog.columns:
+                catalog["tags"] = ""
+            if "release_date" not in catalog.columns:
+                catalog["release_date"] = pd.NaT
+            if "developer" not in catalog.columns:
+                catalog["developer"] = "Unknown"
             # Category diversity: number of distinct genres user plays
             train_w_cat = train_df.merge(catalog[["item_id", "category", "price", "early_access_item"]],
                                          on="item_id", how="left")
@@ -110,6 +125,21 @@ class TwoTowerRecommender:
     def _build_item_features(self, train_df: pd.DataFrame,
                              catalog: pd.DataFrame) -> np.ndarray:
         """Build item features: interaction stats + catalog metadata (genres, price, etc.)."""
+        catalog = catalog.copy()
+        if "category" not in catalog.columns:
+            catalog["category"] = "Unknown"
+        if "genres" not in catalog.columns:
+            catalog["genres"] = ""
+        if "tags" not in catalog.columns:
+            catalog["tags"] = ""
+        if "price" not in catalog.columns:
+            catalog["price"] = 0.0
+        if "release_date" not in catalog.columns:
+            catalog["release_date"] = pd.NaT
+        if "early_access_item" not in catalog.columns:
+            catalog["early_access_item"] = False
+        if "developer" not in catalog.columns:
+            catalog["developer"] = "Unknown"
         # Interaction stats
         item_feats = train_df.groupby("item_id").agg(
             feat_popularity=("user_id", "count"),
