@@ -75,9 +75,14 @@ def evaluate(
     train_df = pd.read_parquet(data_dir / "train.parquet")
     val_df = pd.read_parquet(data_dir / "validation.parquet")
     test_df = pd.read_parquet(data_dir / "test.parquet")
+    for df in (train_df, val_df, test_df):
+        df["user_id"] = df["user_id"].astype(str)
+        df["item_id"] = df["item_id"].astype(str)
     items_path = data_dir / "items.parquet"
     if items_path.exists():
         catalog_df = pd.read_parquet(items_path)
+        if "item_id" in catalog_df.columns:
+            catalog_df["item_id"] = catalog_df["item_id"].astype(str)
     else:
         catalog_df = pd.DataFrame({"item_id": sorted(train_df["item_id"].astype(str).unique())})
     mf_train_df = _sample_training_positives(train_df, max_train_positives, mf_config.seed)

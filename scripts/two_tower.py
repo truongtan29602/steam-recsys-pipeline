@@ -66,6 +66,7 @@ class TwoTowerRecommender:
         self._item_features: np.ndarray | None = None
         self._top_genres: List[str] = []
         self._top_tags: List[str] = []
+        self._popular_items: List[str] = []
 
     def _require_torch(self) -> None:
         if torch is None:
@@ -216,12 +217,16 @@ class TwoTowerRecommender:
         label_col: str = "is_positive",
     ) -> "TwoTowerRecommender":
         self._require_torch()
+        train_df = train_df.copy()
+        train_df[user_col] = train_df[user_col].astype(str)
+        train_df[item_col] = train_df[item_col].astype(str)
         positives = train_df[train_df[label_col]].copy()
         if positives.empty:
             raise ValueError("TwoTower requires positive interactions.")
 
         self.user_to_idx, self.idx_to_user = self._build_index(positives[user_col].astype(str))
         self.item_to_idx, self.idx_to_item = self._build_index(positives[item_col].astype(str))
+        self._popular_items = positives[item_col].value_counts().index.astype(str).tolist()
         self._user_features = self._build_user_features(train_df, catalog)
         self._item_features = self._build_item_features(train_df, catalog)
 
@@ -254,6 +259,7 @@ class TwoTowerRecommender:
         all_item_indices = np.arange(len(self.idx_to_item))
         rng = np.random.default_rng(self.config.seed)
 
+        scaler = torch.cuda.amp.GradScaler(enabled=(device.type == "cuda"))
         for epoch in range(self.config.epochs):
             total_loss = 0.0
             order = rng.permutation(len(pairs))
@@ -275,19 +281,23 @@ class TwoTowerRecommender:
                 p_idx = torch.tensor([self.item_to_idx[i] for i in batch_pos], device=device)
                 n_idx = torch.tensor([self.item_to_idx[i] for i in batch_neg], device=device)
 
-                u_emb = self.user_tower(user_tensor[u_idx])
-                p_emb = self.item_tower(item_tensor[p_idx])
-                n_emb = self.item_tower(item_tensor[n_idx])
+                with torch.cuda.amp.autocast(enabled=(device.type == "cuda")):
+                    u_emb = self.user_tower(user_tensor[u_idx])
+                    p_emb = self.item_tower(item_tensor[p_idx])
+                    n_emb = self.item_tower(item_tensor[n_idx])
 
-                all_item_emb = self.item_tower(item_tensor)
-                all_logits = (u_emb @ all_item_emb.T) / self.config.temperature
-                loss = F.cross_entropy(all_logits, p_idx)
-                loss = loss + 0.1 * ((u_emb - p_emb).pow(2).sum(dim=1).mean()
-                                     + (u_emb - n_emb).pow(2).sum(dim=1).mean())
+                    # In-batch candidates: positives + sampled negatives for a much cheaper softmax.
+                    cand_emb = torch.cat([p_emb, n_emb], dim=0)
+                    logits = (u_emb @ cand_emb.T) / self.config.temperature
+                    labels = torch.arange(len(batch_users), device=device)
+                    loss = F.cross_entropy(logits, labels)
+                    loss = loss + 0.1 * ((u_emb - p_emb).pow(2).sum(dim=1).mean()
+                                         + (u_emb - n_emb).pow(2).sum(dim=1).mean())
 
-                opt.zero_grad()
-                loss.backward()
-                opt.step()
+                opt.zero_grad(set_to_none=True)
+                scaler.scale(loss).backward()
+                scaler.step(opt)
+                scaler.update()
                 total_loss += loss.item()
                 n_batches += 1
 
@@ -315,10 +325,11 @@ class TwoTowerRecommender:
         item_ids = np.array(self.idx_to_item)
         with torch.no_grad():
             all_item_emb = self.item_tower(item_tensor).detach().cpu().numpy()
-            for user_id in user_ids:
-                if user_id not in self.user_to_idx:
-                    recs[user_id] = []
-                    continue
+        for user_id in user_ids:
+            if user_id not in self.user_to_idx:
+                fallback = [it for it in self._popular_items if it not in history.get(user_id, set())][:k]
+                recs[user_id] = fallback
+                continue
                 u_idx = self.user_to_idx[user_id]
                 u_emb = self.user_tower(user_tensor[[u_idx]]).detach().cpu().numpy()[0]
                 scores = all_item_emb @ u_emb
