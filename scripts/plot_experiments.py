@@ -6,12 +6,12 @@ import numpy as np
 
 # Data
 models = [
-    "Random\n(Hamza)",
-    "MF-BPR\n(Hamza)",
-    "Two-Tower basic\n(Hamza)",
-    "Popularity\n(Hamza)",
-    "Two-Tower enriched\n(OURS)",
-    "TT enriched + LightGBM\n(OURS)",
+    "Random",
+    "MF-BPR",
+    "Two-Tower basic",
+    "Popularity",
+    "Two-Tower enriched",
+    "TT enriched + LightGBM",
 ]
 
 recall_20 = [0.12, 0.002, 0.002, 16.99, 8.03, None]
@@ -19,7 +19,6 @@ ndcg_10  = [0.03, 0.0008, 0.0003, 5.46, 1.90, 30.11]
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5))
 
-# Color per model
 colors = ["#95a5a6", "#95a5a6", "#95a5a6", "#e67e22", "#3498db", "#2ecc71"]
 labels_colors = ["Hamza/Tan", "Hamza/Tan", "Hamza/Tan", "Hamza/Linh", "Malo", "Malo"]
 
